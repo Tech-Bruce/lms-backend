@@ -1,0 +1,205 @@
+const User = require('../models/userModel');
+const Course = require('../models/courseModel');
+const InstructorProfile = require('../models/InstructorProfile');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const Assign = require('../models/Assign');
+const assignModel = require('../models/Assign');
+const Enrollments = require('../models/Enrollments');
+exports.createInstructor = async (req, res) => {
+  try {
+    const { name, email, course, availability } = req.body;
+    const existing = await User.findOne({ email });
+    if (existing) return res.status(400).json({ msg: 'Email already in use' });
+
+    const hashed = await bcrypt.hash('mentor123', 10);
+    // Create instructor user
+    const instructor = await User.create({
+      name,
+      email,
+      password: hashed,
+      role: 'instructor',
+      course
+    });
+    
+    // If course is specified, assign instructor to course
+    if (course) {
+      await Course.findByIdAndUpdate(course, { instructor: instructor._id });
+    }
+
+    // Create an instructor profile automatically
+    await InstructorProfile.create({
+      userId: instructor._id,
+      experience: "Not specified",
+      availability: availability || []
+    });
+    
+    res.status(201).json({
+      status: 'success',
+      data: {
+        instructor
+      }
+    });
+  } catch (err) {
+    res.status(400).json({
+      status: 'fail',
+      message: err.message
+    });
+  }
+};
+
+exports.updateInstructor = async (req, res) => {
+  try {
+    const { name, email, course, availability } = req.body;
+    const instructorId = req.params.id;
+console.log("BODY", req.body);
+    
+    // Update instructor data
+    const updateData = { name, email };
+
+    const instructor = await User.findByIdAndUpdate(
+      instructorId,
+      updateData,
+      { new: true }
+    );
+    
+    // Update or create InstructorProfile
+    await InstructorProfile.findOneAndUpdate(
+      { userId: instructorId },
+      { availability: availability || [] },
+      { new: true, upsert: true }
+    );
+    
+    // Update course assignment if changed
+    if (course) {
+      // Remove from previous course
+      await Course.updateMany(
+        { instructor: instructorId },
+        { $unset: { instructor: 1 } }
+      );
+      
+      // Add to new course
+      await Course.findByIdAndUpdate(course, { instructor: instructorId });
+    }
+    
+    res.status(200).json({
+      status: 'success',
+      data: {
+        instructor
+      }
+    });
+  } catch (err) {
+    res.status(400).json({
+      status: 'fail',
+      message: err.message
+    });
+  }
+};
+
+
+exports.assignCourse = async (req, res) => {
+  try {
+    const { instructorId, courseId, role } = req.body;
+
+    // Validate required fields
+    if (!instructorId || !courseId || !role) {
+      return res.status(400).json({ msg: 'Instructor ID, Course ID, and Role are required' });
+    }
+
+    // Validate instructor existence and role
+    const instructor = await User.findById(instructorId);
+    if (!instructor || instructor.role !== 'instructor') {
+      return res.status(404).json({ msg: 'Instructor not found or invalid role' });
+    }
+
+    // Validate course existence
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ msg: 'Course not found' });
+    }
+
+    // Check for existing assignment
+    const alreadyAssigned = await Assign.findOne({ instructorId, courseId });
+    if (alreadyAssigned) {
+      return res.status(409).json({ msg: 'Course already assigned to this instructor' });
+    }
+
+    // Create the assignment
+    const newAssignment = new Assign({
+      instructorId,
+      courseId,
+      role,
+    });
+
+    await newAssignment.save();
+
+    return res.status(201).json({ msg: 'Course assigned successfully', assignment: newAssignment });
+  } catch (err) {
+    console.error('Assignment error:', err);
+    return res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+exports.getInstructorCourses = async (req, res) => {
+  try {
+    const instructorId = req.params.id;
+console.log("BODY", req.body);
+    const courses = await assignModel.find({ instructorId }).populate('courseId');
+    if (!courses) {
+      return res.status(404).json({ msg: 'No courses found for this instructor' });
+    }
+    res.status(200).json({ courses });
+  } catch (err) {
+    console.error('Error fetching instructor courses:', err);
+    return res.status(500).json({ msg: 'Server error' });
+  }
+};
+exports.getInstructorStudentsByCourseId = async (req, res) => {
+  try {
+    const { courseIds } = req.body;
+
+    if (!courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
+      return res.status(400).json({ msg: 'courseIds must be a non-empty array' });
+    }
+
+    // Fetch enrollments and populate related data
+    const enrollments = await Enrollments.find({ courseId: { $in: courseIds } })
+      .populate('studentId')
+      .populate('courseId');
+
+    if (!enrollments || enrollments.length === 0) {
+      return res.status(404).json({ msg: 'No enrollments found for the provided course IDs' });
+    }
+
+    // Group students by course
+    const courseStudentMap = {};
+
+    enrollments.forEach(enrollment => {
+      const course = enrollment.courseId;
+      const student = enrollment.studentId;
+
+      if (!course || !student) return; // safety check in case of incomplete population
+
+      const courseId = course._id.toString();
+
+      if (!courseStudentMap[courseId]) {
+        courseStudentMap[courseId] = {
+          courseId: course._id,
+          courseName: course.title || '', // assuming course has a name field
+          students: []
+        };
+      }
+
+      courseStudentMap[courseId].students.push(student);
+    });
+
+    // Convert map to array
+    const result = Object.values(courseStudentMap);
+
+    res.status(200).json({ success: true, data: result });
+
+  } catch (error) {
+    console.error('Error fetching instructor students:', error);
+    return res.status(500).json({ msg: 'Server error', error });
+  }
+}

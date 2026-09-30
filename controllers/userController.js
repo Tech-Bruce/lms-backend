@@ -51,6 +51,35 @@ getAllStudents: async (req, res) => {
       const user = await User.findById(req.params.id).select('-password');
       if (!user) return res.status(404).json({ msg: 'User not found' });
 
+      // Daily streak logic
+      const now = new Date();
+      const lastLoginDate = user.lastLogin ? new Date(user.lastLogin) : new Date(0);
+      
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const lastDate = new Date(lastLoginDate.getFullYear(), lastLoginDate.getMonth(), lastLoginDate.getDate());
+      
+      const diffTime = today - lastDate;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      let updated = false;
+      if (diffDays === 1) {
+        user.streak = (user.streak || 0) + 1;
+        user.lastLogin = now;
+        updated = true;
+      } else if (diffDays > 1) {
+        user.streak = 1;
+        user.lastLogin = now;
+        updated = true;
+      } else if (!user.lastLogin) {
+        user.streak = 1;
+        user.lastLogin = now;
+        updated = true;
+      }
+
+      if (updated) {
+        await user.save();
+      }
+
       res.status(200).json(user);
     } catch (err) {
       res.status(500).json({ msg: err.message });

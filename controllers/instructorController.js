@@ -1,5 +1,6 @@
 const User = require('../models/userModel');
 const Course = require('../models/courseModel');
+const InstructorProfile = require('../models/InstructorProfile');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Assign = require('../models/Assign');
@@ -7,11 +8,11 @@ const assignModel = require('../models/Assign');
 const Enrollments = require('../models/Enrollments');
 exports.createInstructor = async (req, res) => {
   try {
-    const { name, email, password, course } = req.body;
+    const { name, email, course, availability } = req.body;
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ msg: 'Email already in use' });
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashed = await bcrypt.hash('mentor123', 10);
     // Create instructor user
     const instructor = await User.create({
       name,
@@ -25,6 +26,13 @@ exports.createInstructor = async (req, res) => {
     if (course) {
       await Course.findByIdAndUpdate(course, { instructor: instructor._id });
     }
+
+    // Create an instructor profile automatically
+    await InstructorProfile.create({
+      userId: instructor._id,
+      experience: "Not specified",
+      availability: availability || []
+    });
     
     res.status(201).json({
       status: 'success',
@@ -42,19 +50,24 @@ exports.createInstructor = async (req, res) => {
 
 exports.updateInstructor = async (req, res) => {
   try {
-    const { name, email, password, course } = req.body;
+    const { name, email, course, availability } = req.body;
     const instructorId = req.params.id;
+console.log("BODY", req.body);
     
     // Update instructor data
-    const updateData = { name, email, course };
-    
-    const hashed = await bcrypt.hash(password, 10);
-    if (password) updateData.password = hashed;
+    const updateData = { name, email };
 
     const instructor = await User.findByIdAndUpdate(
       instructorId,
       updateData,
       { new: true }
+    );
+    
+    // Update or create InstructorProfile
+    const prof = await InstructorProfile.findOneAndUpdate(
+      { userId: instructorId },
+      { availability: availability || [] },
+      { new: true, upsert: true }
     );
     
     // Update course assignment if changed
@@ -130,6 +143,7 @@ exports.assignCourse = async (req, res) => {
 exports.getInstructorCourses = async (req, res) => {
   try {
     const instructorId = req.params.id;
+console.log("BODY", req.body);
     const courses = await assignModel.find({ instructorId }).populate('courseId');
     if (!courses) {
       return res.status(404).json({ msg: 'No courses found for this instructor' });

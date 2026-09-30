@@ -59,6 +59,12 @@ const instructorProfileSchema = new mongoose.Schema(
       type: String, // Stores image path or URL
       trim: true,
     },
+    availability: [
+      {
+        date: String,
+        time: String
+      }
+    ],
   },
   {
     timestamps: true, // createdAt, updatedAt auto added

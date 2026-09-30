@@ -46,6 +46,9 @@ exports.bookSlot = async (req, res) => {
     if (!slot) {
       return res.status(404).json({ error: "Slot not found" });
     }
+    if (!slot.mentor) {
+      return res.status(400).json({ error: "The mentor for this slot is no longer available." });
+    }
     if (slot.booked) {
       return res.status(400).json({ error: "Slot already booked" });
     }

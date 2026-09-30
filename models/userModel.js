@@ -18,6 +18,13 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  streak: {
+    type: Number,
+    default: 0,
+  },
+  lastLogin: {
+    type: Date,
+  },
 }, { timestamps: true });
 userSchema.methods.correctPassword = async function (enteredPass) {
   return await bcrypt.compare(enteredPass, this.password);

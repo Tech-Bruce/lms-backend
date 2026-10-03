@@ -26,9 +26,14 @@ const DB = process.env.DATABASE.replace(
   process.env.DATABASE_PASSWORD
 );
 
+const PORT = process.env.PORT || 8000;
+
 mongoose
   .connect(DB)
-  .then(() => console.log("✅ MongoDB Connected"))
+  .then(() => {
+    console.log("✅ MongoDB Connected");
+    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+  })
   .catch((err) => console.error("DB connection error:", err));
 
 // Default Route
@@ -56,5 +61,3 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Something went wrong!" });
 });
 
-const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

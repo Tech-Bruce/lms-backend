@@ -16,6 +16,15 @@ exports.createCourse = async (req, res) => {
   try {
     const { title, category, description, price, status, featured, isNav } = req.body;
 
+    let parsedSyllabus = [];
+    if (req.body.syllabus) {
+      try {
+        parsedSyllabus = typeof req.body.syllabus === 'string' ? JSON.parse(req.body.syllabus) : req.body.syllabus;
+      } catch (e) {
+        parsedSyllabus = Array.isArray(req.body.syllabus) ? req.body.syllabus : [req.body.syllabus];
+      }
+    }
+
     const course = new Course({
       title,
       category,
@@ -24,6 +33,7 @@ exports.createCourse = async (req, res) => {
       status,
       featured: featured === "true" || featured === true, // FormData sends strings
       isNav: isNav === "true" || isNav === true,
+      syllabus: parsedSyllabus,
       thumbnail: req.file ? req.file.filename : null,
     });
 
@@ -237,6 +247,15 @@ exports.updateCourse = async (req, res) => {
     if (!course) return res.status(404).json({ error: "Course not found" });
 
     // Build payload only with provided fields
+    let parsedSyllabus = undefined;
+    if (req.body.syllabus) {
+      try {
+        parsedSyllabus = typeof req.body.syllabus === 'string' ? JSON.parse(req.body.syllabus) : req.body.syllabus;
+      } catch (e) {
+        parsedSyllabus = Array.isArray(req.body.syllabus) ? req.body.syllabus : [req.body.syllabus];
+      }
+    }
+
    let payload = {
   title: req.body.title,
   category: req.body.category,
@@ -245,7 +264,7 @@ exports.updateCourse = async (req, res) => {
   status: req.body.status,
   featured: req.body.featured,
   isNav: req.body.isNav,
- 
+  ...(parsedSyllabus !== undefined && { syllabus: parsedSyllabus }),
 };
     // Handle new thumbnail upload
     if (req.file) {

@@ -54,6 +54,8 @@ app.use("/api/v1/instructors", require("./routes/instructorRoutes"));
 app.use("/api/v1/students", require("./routes/studentRoute"));
 app.use("/api/v1/mentorship", require("./routes/slotRoutes"));
 app.use("/api/v1/progress", progressRoutes);
+app.use("/api/v1/curriculum", require("./routes/taskCurriculumRoutes"));
+app.use("/api/v1/certifications", require("./routes/certificationRoutes"));
 
 // Global error handler
 app.use((err, req, res, next) => {

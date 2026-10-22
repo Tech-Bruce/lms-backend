@@ -25,6 +25,12 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date,
   },
+  resetPasswordOtp: {
+    type: String,
+  },
+  resetPasswordExpires: {
+    type: Date,
+  },
 }, { timestamps: true });
 userSchema.methods.correctPassword = async function (enteredPass) {
   return await bcrypt.compare(enteredPass, this.password);

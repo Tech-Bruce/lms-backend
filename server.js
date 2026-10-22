@@ -56,6 +56,7 @@ app.use("/api/v1/mentorship", require("./routes/slotRoutes"));
 app.use("/api/v1/progress", progressRoutes);
 app.use("/api/v1/curriculum", require("./routes/taskCurriculumRoutes"));
 app.use("/api/v1/certifications", require("./routes/certificationRoutes"));
+app.use("/api/v1/missions", require("./routes/missionRoutes"));
 
 // Global error handler
 app.use((err, req, res, next) => {

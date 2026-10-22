@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, login } = require('../controllers/authController');
+const { register, login, forgotPassword, resetPassword } = require('../controllers/authController');
 const { protect, restrictTo } = require('../middleware/protect');
 const bcrypt = require('bcryptjs');
 const User = require('../models/userModel');
@@ -34,6 +34,8 @@ router.get('/create-admin', async (req, res) => {
 // Auth Routes
 router.post('/register', register);
 router.post('/login', login);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 
 // Admin Protected Route
 router.post('/admin/create-instructor', protect, restrictTo('admin'), createInstructor);
